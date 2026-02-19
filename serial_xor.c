@@ -9,7 +9,7 @@
 
 int main() {
     char original[MAX_LEN];
-    char buffer[MAX_LEN]; // We will use this buffer for processing
+    char buffer[MAX_LEN]; 
     
     printf("=======================================================\n");
     printf("Serial XOR Analysis (Stress Test Mode: %d Iterations)\n", NUM_ITERATIONS);
@@ -21,22 +21,18 @@ int main() {
         return 1;
     }
 
-    // Remove newline
     original[strcspn(original, "\n")] = 0;
     int length = strlen(original);
     
-    // Copy original to buffer for processing
     strcpy(buffer, original);
 
     printf("\nInput Length: %d characters\n", length);
     printf("Processing... (This may take a moment)\n");
 
-    // --- Start Timing ---
+    // Start Timing 
     clock_t start_time = clock();
 
-    // STRESS TEST LOOP
-    // We repeat the encryption and decryption cycle many times
-    // to simulate a heavy workload or large data stream.
+    // STRESS TEST LOOP: Repeat the encryption and decryption cycle many times
     for (int k = 0; k < NUM_ITERATIONS; k++) {
         
         // 1. Encryption
@@ -44,19 +40,17 @@ int main() {
             buffer[i] = buffer[i] ^ KEY;
         }
 
-        // 2. Decryption (Immediately decrypt back to verify/reset for next loop)
-        // In a real stream, we would output this, but here we just compute.
+        // 2. Decryption
         for (int i = 0; i < length; i++) {
             buffer[i] = buffer[i] ^ KEY;
         }
     }
 
-    // --- Stop Timing ---
+    // Stop Timing
     clock_t end_time = clock();
     double time_taken = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
 
-    // --- Verify Result (Check the buffer after the last iteration) ---
-    // Since we did Encrypt -> Decrypt in every loop, 'buffer' should match 'original'.
+    // Verify Result
     printf("\n--- Results ---\n");
     printf("Final Buffer Content: %s\n", buffer);
 
