@@ -53,39 +53,34 @@ int main() {
 
     #pragma omp parallel 
     {
-        int thread_id = omp_get_thread_num();
-        int total_threads = omp_get_num_threads();
-        
-        long chunk_size = length / total_threads;
-        long start_idx = thread_id * chunk_size;
-        long end_idx = (thread_id == total_threads - 1) ? length : start_idx + chunk_size;
 
         for (int k = 0; k < NUM_ITERATIONS; k++) {
             
-            // 1. Encryption Pass
-            for (long i = start_idx; i < end_idx; i++) {
+            #pragma omp for schedule(static)
+            for (long i = 0; i < length; i++) {
                 buffer[i] = buffer[i] ^ KEY;
             }
 
             // --- Capture Output Logic ---
             // On the 1st iteration (k=0), wait for all threads to finish encrypting
             // then one thread writes the encrypted buffer to a file.
-            if (k == 0) {
-                #pragma omp barrier 
-                #pragma omp single
-                {
-                    FILE *enc_file = fopen("openmp_enc_text_corpus", "w");
-                    if (enc_file) {
-                        fwrite(buffer, 1, length, enc_file);
-                        fclose(enc_file);
-                        printf("[INFO] First iteration encrypted output saved.\n");
-                    }
-                }
-                #pragma omp barrier // Ensure writing is done before decryption starts
-            }
+            // if (k == 0) {
+            //     #pragma omp barrier 
+            //     #pragma omp single
+            //     {
+            //         FILE *enc_file = fopen("openmp_enc_text_corpus", "w");
+            //         if (enc_file) {
+            //             fwrite(buffer, 1, length, enc_file);
+            //             fclose(enc_file);
+            //             printf("[INFO] First iteration encrypted output saved.\n");
+            //         }
+            //     }
+            //     #pragma omp barrier // Ensure writing is done before decryption starts
+            // }
 
             // 2. Decryption Pass
-            for (long i = start_idx; i < end_idx; i++) {
+            #pragma omp for schedule(static)
+            for (long i = 0; i < length; i++) {
                 buffer[i] = buffer[i] ^ KEY;
             }
         }
