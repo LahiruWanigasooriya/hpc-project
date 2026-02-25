@@ -9,25 +9,23 @@
 int main() {
     int num_threads;
     
-    // 1. Open and read the file
+    // 1. Open and read the source file
     FILE *file = fopen("text_corpus", "r");
     if (file == NULL) {
-        perror("Error opening text_corpus.txt");
+        perror("Error opening text_corpus");
         return 1;
     }
 
-    // Determine file size
     fseek(file, 0, SEEK_END);
     long length = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    // Dynamic allocation to handle any file size
     char *original = (char *)malloc(length + 1);
     char *buffer = (char *)malloc(length + 1);
 
     if (original == NULL || buffer == NULL) {
         printf("Memory allocation failed.\n");
-        fclose(file);
+        if (file) fclose(file);
         return 1;
     }
 
@@ -35,7 +33,6 @@ int main() {
     original[length] = '\0';
     fclose(file);
     
-    // Sync buffer with original
     memcpy(buffer, original, length + 1);
 
     printf("=======================================================\n");
@@ -49,31 +46,45 @@ int main() {
     omp_set_num_threads(num_threads);
 
     printf("\nFile Length: %ld characters\n", length);
-    printf("Processing with %d threads...\n", num_threads);
-
-    
+    printf("Iterations: %d\n", NUM_ITERATIONS);
+    printf("Processing...\n");
 
     double start_time = omp_get_wtime();
 
     #pragma omp parallel 
     {
-        // Manually divide the workload (your original logic)
         int thread_id = omp_get_thread_num();
         int total_threads = omp_get_num_threads();
         
         long chunk_size = length / total_threads;
         long start_idx = thread_id * chunk_size;
-        
-        // Ensure the last thread takes any remaining remainder bytes
         long end_idx = (thread_id == total_threads - 1) ? length : start_idx + chunk_size;
 
         for (int k = 0; k < NUM_ITERATIONS; k++) {
-            // 1. Encryption
+            
+            // 1. Encryption Pass
             for (long i = start_idx; i < end_idx; i++) {
                 buffer[i] = buffer[i] ^ KEY;
             }
 
-            // 2. Decryption
+            // --- Capture Output Logic ---
+            // On the 1st iteration (k=0), wait for all threads to finish encrypting
+            // then one thread writes the encrypted buffer to a file.
+            if (k == 0) {
+                #pragma omp barrier 
+                #pragma omp single
+                {
+                    FILE *enc_file = fopen("openmp_enc_text_corpus", "w");
+                    if (enc_file) {
+                        fwrite(buffer, 1, length, enc_file);
+                        fclose(enc_file);
+                        printf("[INFO] First iteration encrypted output saved.\n");
+                    }
+                }
+                #pragma omp barrier // Ensure writing is done before decryption starts
+            }
+
+            // 2. Decryption Pass
             for (long i = start_idx; i < end_idx; i++) {
                 buffer[i] = buffer[i] ^ KEY;
             }
@@ -84,7 +95,6 @@ int main() {
     double time_taken = end_time - start_time;
 
     printf("\n--- Results ---\n");
-    // Using memcmp for large data integrity checks
     if (memcmp(original, buffer, length) == 0) {
         printf("[SUCCESS] Integrity maintained.\n");
     } else {
@@ -92,9 +102,9 @@ int main() {
     }
 
     printf("\nTotal Execution Time: %f seconds\n", time_taken);
+    printf("Avg Time per Iteration: %.9f seconds\n", time_taken / NUM_ITERATIONS);
     printf("=======================================================\n");
 
-    // Clean up memory
     free(original);
     free(buffer);
 

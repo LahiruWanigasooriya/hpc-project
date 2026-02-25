@@ -4,12 +4,12 @@
 #include <time.h>
 
 #define KEY 'K'               // Simple XOR key
-#define NUM_ITERATIONS 100 // Stress test cycles
+#define NUM_ITERATIONS 100    // Stress test cycles
 
 int main() {
     FILE *file = fopen("text_corpus", "r");
     if (file == NULL) {
-        perror("Error opening file");
+        perror("Error opening input file");
         return 1;
     }
 
@@ -24,20 +24,20 @@ int main() {
 
     if (original == NULL || buffer == NULL) {
         printf("Memory allocation failed.\n");
-        fclose(file);
+        if (file) fclose(file);
         return 1;
     }
 
     // Read file into memory
     fread(original, 1, file_size, file);
-    original[file_size] = '\0'; // Null terminator
+    original[file_size] = '\0'; 
     fclose(file);
 
-    long length = strlen(original);
+    long length = file_size;
     memcpy(buffer, original, length + 1);
 
     printf("=======================================================\n");
-    printf("File-Based XOR Analysis (%d Iterations)\n", NUM_ITERATIONS);
+    printf("Serial XOR Analysis (%d Iterations)\n", NUM_ITERATIONS);
     printf("File Size: %ld bytes\n", file_size);
     printf("=======================================================\n");
     printf("Processing stress test... please wait.\n");
@@ -45,12 +45,25 @@ int main() {
     clock_t start_time = clock();
 
     for (int k = 0; k < NUM_ITERATIONS; k++) {
-        // 1. Encryption
+        // 1. Encryption Pass
         for (long i = 0; i < length; i++) {
             buffer[i] ^= KEY;
         }
 
-        // 2. Decryption
+        // --- Save Output Logic ---
+        // Perform this only on the very first iteration (k == 0)
+        if (k == 0) {
+            FILE *enc_file = fopen("serial_enc_text_corpus", "w");
+            if (enc_file != NULL) {
+                fwrite(buffer, 1, length, enc_file);
+                fclose(enc_file);
+                printf("[INFO] First iteration encrypted output saved.\n");
+            } else {
+                printf("[ERROR] Could not create output file.\n");
+            }
+        }
+
+        // 2. Decryption Pass
         for (long i = 0; i < length; i++) {
             buffer[i] ^= KEY;
         }
