@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#define CHUNK_SIZE 1000
 __global__ void xor_function(){}
 
 void loadFile(char* buffer){
@@ -27,8 +27,29 @@ void loadFile(char* buffer){
     return;
 }
 
+int calculateNumberOfChunks(int length, int chunkSize){
+    int numberOfChunks;
+    if (length%chunkSize==0){
+        numberOfChunks = length/chunkSize;
+    }else{
+        numberOfChunks = (lenght/chunksize) + 1;
+    }
+
+    if (numberOfChunks ==0 || numberOfChunks<0){
+        return -1;
+    }
+    return numberOfChunks;
+}
+
+void chunkBuffer(char)
+
 int main(){
     char* buffer;
     loadFile(buffer);
+    int numberOfChunks = calculateNumberOfChunks(length,CHUNK_SIZE);
+    if (numberOfChunks == -1){
+        return -1;
+    }
+
 
 }
