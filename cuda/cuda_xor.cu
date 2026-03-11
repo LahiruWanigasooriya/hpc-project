@@ -7,7 +7,7 @@ __global__ void xor_function(char* cuda_chunk,char* cuda_result,int chunkSize){
     }
 }
 
-int loadFile(char* buffer, int* fileSize){
+int loadFile(char** buffer, int* fileSize){
     FILE *file = fopen("../common/text_corpus", "r");
     if (file == NULL) {
         perror("Error opening text_corpus");
@@ -18,16 +18,16 @@ int loadFile(char* buffer, int* fileSize){
     long length = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-   buffer = (char *)malloc(length + 1);
+   *buffer = (char *)malloc(length + 1);
 
-    if (buffer == NULL) {
+    if (*buffer == NULL) {
         printf("Memory allocation failed.\n");
         if (file) fclose(file);
         return -1;
     }
 
-    fread(buffer, 1, length, file);
-    buffer[length] = '\0';
+    fread(*buffer, 1, length, file);
+    // buffer[length] = '\0';
     fclose(file);
     *fileSize = length;
     return 0;
@@ -64,14 +64,14 @@ int saveToFile(char* buffer, int fileSize){
 }
 
 int main(){
-    char* buffer;
+    char* buffer = NULL;
     int fileSize;
-    if(loadFile(buffer, &fileSize) == -1){
+    if(loadFile(&buffer, &fileSize) == -1){
         printf("Error loading.\n");
         return -1;
     }
     int numberOfChunks = calculateNumberOfChunks(fileSize,CHUNK_SIZE);
-    
+
     int sizeOfFinalChunk;
     if (fileSize%CHUNK_SIZE==0){
         sizeOfFinalChunk = CHUNK_SIZE;
@@ -93,7 +93,7 @@ int main(){
         char* chunk = (char*)malloc(CHUNK_SIZE*sizeof(char));
         char* result = (char*)malloc(CHUNK_SIZE*sizeof(char));
         chunkBuffer(buffer, i, chunk);
-        
+
         // GPU memory allocation
         char* cuda_chunk;
         cudaMalloc((void**) &cuda_chunk, CHUNK_SIZE * sizeof(char));
@@ -102,7 +102,7 @@ int main(){
 
         // copying chunk to GPU
         cudaMemcpy(cuda_chunk, chunk, CHUNK_SIZE * sizeof(char), cudaMemcpyHostToDevice);
-        
+
         xor_function<<<1,1>>>(cuda_chunk,cuda_result,currentChunkSize);
         cudaDeviceSynchronize();
 
