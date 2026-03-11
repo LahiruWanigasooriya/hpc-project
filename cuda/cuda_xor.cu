@@ -90,28 +90,28 @@ int main(){
              currentChunkSize = sizeOfFinalChunk;
         }
         printf("Processing chunk %d/%d\n", i+1, numberOfChunks);
-        char* chunk = (char*)malloc(CHUNK_SIZE*sizeof(char));
-        char* result = (char*)malloc(CHUNK_SIZE*sizeof(char));
+        char* chunk = (char*)malloc(currentChunkSize*sizeof(char));
+        char* result = (char*)malloc(currentChunkSize*sizeof(char));
         chunkBuffer(buffer, i, chunk);
 
         // GPU memory allocation
         char* cuda_chunk;
-        cudaMalloc((void**) &cuda_chunk, CHUNK_SIZE * sizeof(char));
+        cudaMalloc((void**) &cuda_chunk, currentChunkSize * sizeof(char));
         char* cuda_result;
-        cudaMalloc((void**) &cuda_result, CHUNK_SIZE * sizeof(char));
+        cudaMalloc((void**) &cuda_result, currentChunkSize * sizeof(char));
 
         // copying chunk to GPU
-        cudaMemcpy(cuda_chunk, chunk, CHUNK_SIZE * sizeof(char), cudaMemcpyHostToDevice);
+        cudaMemcpy(cuda_chunk, chunk, currentChunkSize * sizeof(char), cudaMemcpyHostToDevice);
 
         xor_function<<<1,1>>>(cuda_chunk,cuda_result,currentChunkSize);
         cudaDeviceSynchronize();
 
         // copying result back to host
-        cudaMemcpy(result, cuda_result, CHUNK_SIZE * sizeof(char), cudaMemcpyDeviceToHost);
+        cudaMemcpy(result, cuda_result, currentChunkSize * sizeof(char), cudaMemcpyDeviceToHost);
 
         // Copy the result back to the final result buffer
-        for(int j=0; j<CHUNK_SIZE; j++){
-            finalResult[i*CHUNK_SIZE + j] = result[j];
+        for(int j=0; j<currentChunkSize; j++){
+            finalResult[i*currentChunkSize + j] = result[j];
         }
 
         free(chunk);
