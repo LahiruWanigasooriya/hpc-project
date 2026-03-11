@@ -30,7 +30,7 @@ def plot_combined_analysis():
         # Create figure with 4 subplots in one window
         fig = plt.figure(figsize=(18, 12))
         
-        # ================== SUBPLOT 1: Basic Scaling (Time & Speedup) ==================
+        # =============== SUBPLOT 1: Basic Scaling (Time & Speedup) ==================
         ax1 = fig.add_subplot(2, 2, 1)
         color = 'tab:blue'
         ax1.set_xlabel('Number of Threads')
@@ -48,7 +48,7 @@ def plot_combined_analysis():
         
         ax1.set_title('Basic Scaling Analysis: Execution Time vs. Threads')
         
-        # ================== SUBPLOT 2: Execution Time (Multiple Sizes) ==================
+        # ================== SUBPLOT 2: Execution Time (Multiple Sizes) ================
         ax2 = fig.add_subplot(2, 2, 2)
         colors = cm.viridis(np.linspace(0, 1, len(sizes)))
         

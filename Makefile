@@ -1,6 +1,7 @@
 .PHONY: all clean sequential openmp run-sequential run-openmp help
 
-# Compiler settings
+# Compiler settings 
+
 GCC = gcc
 CFLAGS = -O2 -Wall
 OPENMP_FLAGS = -fopenmp
