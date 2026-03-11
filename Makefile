@@ -44,21 +44,48 @@ run-openmp: openmp
 
 run-all: run-sequential run-openmp
 
+# Plot targets
+plot-combined:
+	@echo "Generating combined analysis plot with all graphs in one window..."
+	cd $(OPENMP_DIR)/data_plotting && python3 openmp_data_plotter_combined.py
+	@echo "✓ Combined plot saved as: $(OPENMP_DIR)/data_plotting/openmp_combined_analysis.png"
+
+plot-separate:
+	@echo "Generating separate analysis plots..."
+	cd $(OPENMP_DIR)/data_plotting && python3 openmp_data_plotter.py && python3 openmp_data_plotter_many_sizes.py
+	@echo "✓ All plots generated"
+
 # Clean
 clean:
 	@echo "Cleaning build outputs..."
 	@rm -f $(SEQUENTIAL_TARGET) $(OPENMP_TARGET)
 	@echo "✓ Clean complete"
 
+# Clean
+clean:
+	@echo "Cleaning build outputs..."
+	@rm -f $(SEQUENTIAL_TARGET) $(OPENMP_TARGET)
+	@rm -f $(OPENMP_DIR)/data_plotting/*.png
+	@echo "✓ Clean complete"
+
 # Help
 help:
 	@echo "HPC Project Makefile (Sequential + OpenMP)"
 	@echo "==========================================="
+	@echo "BUILD:"
 	@echo "  make                - Build both versions"
 	@echo "  make sequential     - Build only sequential"
 	@echo "  make openmp         - Build only OpenMP"
+	@echo ""
+	@echo "RUN:"
 	@echo "  make run-sequential - Build and run sequential"
 	@echo "  make run-openmp     - Build and run OpenMP (4 threads)"
 	@echo "  make run-all        - Build and run both"
-	@echo "  make clean          - Remove build outputs"
+	@echo ""
+	@echo "PLOTS:"
+	@echo "  make plot-combined  - Generate ALL graphs in ONE window (openmp_combined_analysis.png)"
+	@echo "  make plot-separate  - Generate separate plots (original files)"
+	@echo ""
+	@echo "OTHER:"
+	@echo "  make clean          - Remove all build outputs and plots"
 	@echo "  make help           - Show this help"
