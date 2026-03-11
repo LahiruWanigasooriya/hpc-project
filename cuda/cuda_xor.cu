@@ -2,9 +2,8 @@
 #define CHUNK_SIZE 1000
 #define KEY 'K'
 __global__ void xor_function(char* cuda_chunk,char* cuda_result,int chunkSize){
-    for(int i=0; i<chunkSize; i++){
-        cuda_result[i] = cuda_chunk[i] ^ KEY;
-    }
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    cuda_result[index] = cuda_chunk[index] ^ KEY;
 }
 
 int loadFile(char** buffer, int* fileSize){
@@ -83,6 +82,11 @@ int main(){
     }
     int indexOfFinalChunk = numberOfChunks-1;
 
+    printf("File size: %d bytes\n", fileSize);
+    printf("Number of chunks: %d\n", numberOfChunks);
+    printf("Size of final chunk: %d bytes\n", sizeOfFinalChunk);
+    printf("Index of final chunk: %d\n", indexOfFinalChunk);
+
     char* finalResult = (char*)malloc(fileSize*sizeof(char));
     for(int i=0; i<numberOfChunks; i++){
         int currentChunkSize = CHUNK_SIZE;
@@ -102,8 +106,16 @@ int main(){
 
         // copying chunk to GPU
         cudaMemcpy(cuda_chunk, chunk, currentChunkSize * sizeof(char), cudaMemcpyHostToDevice);
+        int totalThreads = currentChunkSize;
+        int threadsForABlock = 256;
+        int totalBlocks = 0;
+        if (totalThreads % threadsForABlock == 0){
+            totalBlocks = totalThreads/threadsForABlock;
+        }else{
+            totalBlocks = totalThreads/threadsForABlock+1;
+        }
 
-        xor_function<<<1,1>>>(cuda_chunk,cuda_result,currentChunkSize);
+        xor_function<<<totalBlocks, threadsForABlock>>>(cuda_chunk,cuda_result,currentChunkSize);
         cudaDeviceSynchronize();
 
         // copying result back to host
