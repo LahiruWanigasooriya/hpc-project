@@ -43,6 +43,14 @@ run-openmp: openmp
 	@echo "Running OpenMP version (4 threads)..."
 	cd $(OPENMP_DIR) && echo "4" | ./openmp_xor
 
+run-openmp-threads:
+	@if [ -z "$(THREADS)" ]; then \
+		echo "Error: THREADS not specified. Usage: make run-openmp-threads THREADS=<number>"; \
+		exit 1; \
+	fi
+	@echo "Running OpenMP version ($(THREADS) threads)..."
+	cd $(OPENMP_DIR) && echo "$(THREADS)" | ./openmp_xor
+
 run-all: run-sequential run-openmp
 
 # Plot targets
