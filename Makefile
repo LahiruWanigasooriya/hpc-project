@@ -62,7 +62,7 @@ clean:
 	@rm -f $(SEQUENTIAL_TARGET) $(OPENMP_TARGET)
 	@echo "✓ Clean complete"
 
-# Clean
+
 clean:
 	@echo "Cleaning build outputs..."
 	@rm -f $(SEQUENTIAL_TARGET) $(OPENMP_TARGET)
