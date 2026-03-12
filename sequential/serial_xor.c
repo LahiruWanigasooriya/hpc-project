@@ -83,6 +83,24 @@ int main() {
     printf("Avg Time per Iteration: %.9f seconds\n", time_taken / NUM_ITERATIONS);
     printf("=======================================================\n");
 
+    // Encrypt one final time for saving
+    for (long i = 0; i < length; i++) {
+        buffer[i] ^= KEY;
+    }
+
+    // Save full encrypted preview as one continuous paragraph
+    FILE *preview_file = fopen("preview_hex.txt", "w");
+    if (preview_file) {
+        for (long i = 0; i < length; i++) {
+            fprintf(preview_file, "%02X", (unsigned char)buffer[i]); // no spaces, no newlines
+        }
+        fprintf(preview_file, "\n");
+        fclose(preview_file);
+        printf("[INFO] Full encrypted preview saved to preview_hex.txt\n");
+    } else {
+        printf("[ERROR] Could not create preview file.\n");
+    }
+
     // Clean up
     free(original);
     free(buffer);
