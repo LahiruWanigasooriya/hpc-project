@@ -89,6 +89,7 @@ help:
 	@echo "RUN:"
 	@echo "  make run-sequential - Build and run sequential"
 	@echo "  make run-openmp     - Build and run OpenMP (4 threads)"
+	@echo "  make run-openmp-threads       - Build and run OpenMP with specified threads (THREADS=<number>)"
 	@echo "  make run-all        - Build and run both"
 	@echo ""
 	@echo "PLOTS:"
