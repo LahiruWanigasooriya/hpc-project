@@ -116,3 +116,38 @@ int main(int argc, char** argv) {
             local_buffer[i] ^= KEY;
         }
     }
+
+     // Gather decrypted data
+    MPI_Gatherv(local_buffer, local_size, MPI_CHAR,
+                buffer, sendcounts, displs, MPI_CHAR,
+                0, MPI_COMM_WORLD);
+
+    double end_time = MPI_Wtime();
+    double time_taken = end_time - start_time;
+    double max_time;
+
+    MPI_Reduce(&time_taken, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    if (rank == 0) {
+        printf("\n--- Results ---\n");
+        if (memcmp(original, buffer, file_size) == 0) {
+            printf("[SUCCESS] Integrity maintained.\n");
+        } else {
+            printf("[FAILURE] Data corruption detected!\n");
+        }
+
+        printf("Total Execution Time: %f seconds\n", max_time);
+        printf("Avg Time per Iteration: %.9f seconds\n", max_time / NUM_ITERATIONS);
+        printf("=======================================================\n");
+
+        free(original);
+        free(buffer);
+    }
+
+    free(local_buffer);
+    free(sendcounts);
+    free(displs);
+
+    MPI_Finalize();
+    return 0;
+}
