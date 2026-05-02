@@ -52,4 +52,28 @@ int main(int argc, char** argv) {
         printf("=======================================================\n");
         printf("Processing stress test... please wait.\n");
     }
-}
+    
+    // Broadcast file size to all processes
+    MPI_Bcast(&file_size, 1, MPI_LONG, 0, MPI_COMM_WORLD);
+
+    // Calculate chunks for Scatterv
+    sendcounts = (int *)malloc(size * sizeof(int));
+    displs = (int *)malloc(size * sizeof(int));
+
+    int base_chunk = file_size / size;
+    int remainder = file_size % size;
+    int sum = 0;
+
+    for (int i = 0; i < size; i++) {
+        sendcounts[i] = base_chunk + (i < remainder ? 1 : 0);
+        displs[i] = sum;
+        sum += sendcounts[i];
+    }
+
+    int local_size = sendcounts[rank];
+    local_buffer = (char *)malloc(local_size);
+
+    if (local_buffer == NULL) {
+        printf("Memory allocation failed on rank %d.\n", rank);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
