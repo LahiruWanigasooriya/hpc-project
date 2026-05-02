@@ -86,3 +86,33 @@ int main(int argc, char** argv) {
     // Ensure all processes have received their data before starting the timer
     MPI_Barrier(MPI_COMM_WORLD);
     double start_time = MPI_Wtime();
+
+    for (int k = 0; k < NUM_ITERATIONS; k++) {
+        // 1. Encryption Pass
+        for (int i = 0; i < local_size; i++) {
+            local_buffer[i] ^= KEY;
+        }
+
+        // --- Save Output Logic ---
+        if (k == 0) {
+            MPI_Gatherv(local_buffer, local_size, MPI_CHAR,
+                        buffer, sendcounts, displs, MPI_CHAR,
+                        0, MPI_COMM_WORLD);
+
+            if (rank == 0) {
+                FILE *enc_file = fopen("mpi_enc_text_corpus.bin", "wb");
+                if (enc_file != NULL) {
+                    fwrite(buffer, 1, file_size, enc_file);
+                    fclose(enc_file);
+                    printf("[INFO] First iteration encrypted output saved.\n");
+                } else {
+                    printf("[ERROR] Could not create output file.\n");
+                }
+            }
+        }
+
+        // 2. Decryption Pass
+        for (int i = 0; i < local_size; i++) {
+            local_buffer[i] ^= KEY;
+        }
+    }
