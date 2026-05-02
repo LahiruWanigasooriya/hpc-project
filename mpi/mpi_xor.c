@@ -77,3 +77,12 @@ int main(int argc, char** argv) {
         printf("Memory allocation failed on rank %d.\n", rank);
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+
+     // Distribute data
+    MPI_Scatterv(buffer, sendcounts, displs, MPI_CHAR, 
+                 local_buffer, local_size, MPI_CHAR, 
+                 0, MPI_COMM_WORLD);
+
+    // Ensure all processes have received their data before starting the timer
+    MPI_Barrier(MPI_COMM_WORLD);
+    double start_time = MPI_Wtime();
