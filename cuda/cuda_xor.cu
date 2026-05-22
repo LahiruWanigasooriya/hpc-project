@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #define CHUNK_SIZE 1000
 #define KEY 'K'
 __global__ void xor_function(char* cuda_chunk,char* cuda_result,int chunkSize){
@@ -88,12 +90,15 @@ int main(){
     printf("Index of final chunk: %d\n", indexOfFinalChunk);
 
     char* finalResult = (char*)malloc(fileSize*sizeof(char));
+
+    clock_t start_time = clock();
+
     for(int i=0; i<numberOfChunks; i++){
         int currentChunkSize = CHUNK_SIZE;
         if (i == indexOfFinalChunk){
              currentChunkSize = sizeOfFinalChunk;
         }
-        printf("Processing chunk %d/%d\n", i+1, numberOfChunks);
+        // printf("Processing chunk %d/%d\n", i+1, numberOfChunks);
         char* chunk = (char*)malloc(currentChunkSize*sizeof(char));
         char* result = (char*)malloc(currentChunkSize*sizeof(char));
         chunkBuffer(buffer, i, chunk);
@@ -131,6 +136,12 @@ int main(){
         cudaFree(cuda_chunk);
         cudaFree(cuda_result);
     }
+
+    clock_t end_time = clock();
+    double time_taken = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
+
+    printf("\nTotal Execution Time: %f seconds\n", time_taken);
+    printf("Avg Time per Chunk: %.9f seconds\n", time_taken / numberOfChunks);
 
     if(saveToFile(finalResult, fileSize) == -1){
         printf("Error saving to file.\n");
