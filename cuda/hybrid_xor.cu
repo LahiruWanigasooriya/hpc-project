@@ -173,7 +173,7 @@ int main() {
 
     printf("File size: %d bytes\n", fileSize);
 
-    // ================= SPLIT DATA =================
+    // ============== SPLIT DATA ==============
 
     int gpuSize = fileSize / 2;
 
@@ -194,7 +194,7 @@ int main() {
            buffer + gpuSize,
            cpuSize);
 
-    // ================= GPU ENCRYPTION =================
+    // ============ GPU ENCRYPTION ============
 
     printf("===== GPU ENCRYPTION =====\n");
 
@@ -226,8 +226,7 @@ int main() {
     printf("CPU Throughput: %.2f MB/s\n\n",
            cpuThroughput);
 
-    // ================= COMBINE RESULTS =================
-
+    // ============== COMBINE RESULTS ===============
     memcpy(buffer, gpuBuffer, gpuSize);
 
     memcpy(buffer + gpuSize,
@@ -243,7 +242,7 @@ int main() {
 
     printf("===== HYBRID ENCRYPTION COMPLETE =====\n\n");
 
-    // ==================================================
+    
     // DECRYPTION
     // ==================================================
 
