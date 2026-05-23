@@ -376,8 +376,11 @@ function App() {
 
           {/* 4. Graphs Section */}
           {results.length > 0 && (
-            <div className="w-full">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="w-full mt-15">
+              <h3 className="text-xl font-semibold text-slate-300 uppercase tracking-wider mb-3 ml-1 flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-slate-400" /> Performance Analytics
+              </h3>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-5">
                 <div className="border-b border-slate-100 px-6 pt-5 flex items-center justify-between">
                   <div className="flex gap-1">
                     {tabs.map(tab => (
@@ -404,7 +407,7 @@ function App() {
                   )}
                 </div>
 
-                <div className="p-6 h-80">
+                <div className="p-6 h-[450px]">
                   {activeTab === 'bar' && (
                     results.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
