@@ -4,22 +4,22 @@
 
 #define KEY 'K'
 
+// XOR kernel (same for encryption and decryption)
 __global__ void xor_function(char* data, int size) {
-    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Bounds checking
     if (index < size) {
         data[index] ^= KEY;
     }
 }
 
-// Load file into memory
+// Load file
 int loadFile(char** buffer, int* fileSize) {
 
     FILE *file = fopen("../common/text_corpus", "rb");
 
-    if (file == NULL) {
-        perror("Error opening text_corpus");
+    if (!file) {
+        perror("Error opening input file");
         return -1;
     }
 
@@ -29,36 +29,61 @@ int loadFile(char** buffer, int* fileSize) {
 
     *buffer = (char*)malloc(length);
 
-    if (*buffer == NULL) {
-        printf("Memory allocation failed.\n");
+    if (!*buffer) {
+        printf("Memory allocation failed\n");
         fclose(file);
         return -1;
     }
 
     fread(*buffer, 1, length, file);
-
     fclose(file);
 
     *fileSize = length;
-
     return 0;
 }
 
-// Save encrypted result
-int saveToFile(char* buffer, int fileSize) {
+// Save file
+int saveToFile(const char* path, char* buffer, int fileSize) {
 
-    FILE *file = fopen("../common/cuda/encrypted_corpus", "wb");
+    FILE *file = fopen(path, "wb");
 
-    if (file == NULL) {
-        perror("Error opening encrypted_corpus");
+    if (!file) {
+        perror("Error opening output file");
         return -1;
     }
 
     fwrite(buffer, 1, fileSize, file);
-
     fclose(file);
 
     return 0;
+}
+
+// Run kernel + timing
+float runKernel(char* d_buffer, int fileSize) {
+
+    int threadsPerBlock = 256;
+    int totalBlocks = (fileSize + threadsPerBlock - 1) / threadsPerBlock;
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+
+    xor_function<<<totalBlocks, threadsPerBlock>>>(d_buffer, fileSize);
+
+    cudaDeviceSynchronize();
+
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float ms = 0;
+    cudaEventElapsedTime(&ms, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
+    return ms;
 }
 
 int main() {
@@ -66,104 +91,63 @@ int main() {
     char* buffer = NULL;
     int fileSize;
 
-    // Load input file
+    // Load file
     if (loadFile(&buffer, &fileSize) == -1) {
-        printf("Error loading file.\n");
         return -1;
     }
 
     printf("File size: %d bytes\n", fileSize);
 
-    // GPU memory pointer
-    char* cuda_buffer;
+    char* d_buffer;
+    cudaMalloc((void**)&d_buffer, fileSize);
 
-    // Allocate GPU memory
-    cudaMalloc((void**)&cuda_buffer, fileSize);
+    cudaMemcpy(d_buffer, buffer, fileSize, cudaMemcpyHostToDevice);
 
-    // Copy file data to GPU
-    cudaMemcpy(
-        cuda_buffer,
-        buffer,
-        fileSize,
-        cudaMemcpyHostToDevice
-    );
+    printf("Threads per block: 256\n");
+    printf("Total blocks: %d\n\n",
+           (fileSize + 255) / 256);
 
-    // CUDA thread configuration
-    int threadsPerBlock = 256;
+    // =========================
+    // ENCRYPTION
+    // =========================
+    printf("===== ENCRYPTION PHASE =====\n");
 
-    int totalBlocks =
-        (fileSize + threadsPerBlock - 1)
-        / threadsPerBlock;
+    float enc_time = runKernel(d_buffer, fileSize);
 
-    printf("Threads per block: %d\n", threadsPerBlock);
-    printf("Total blocks: %d\n", totalBlocks);
+    cudaMemcpy(buffer, d_buffer, fileSize, cudaMemcpyDeviceToHost);
 
-    // CUDA timing
-    cudaEvent_t start, stop;
+    saveToFile("../common/cuda/encrypted_corpus", buffer, fileSize);
 
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    float enc_throughput =
+        (fileSize / (1024.0 * 1024.0)) / (enc_time / 1000.0);
 
-    cudaEventRecord(start);
+    printf("Encryption Time: %.4f ms\n", enc_time);
+    printf("Encryption Throughput: %.2f MB/s\n\n", enc_throughput);
 
-    // Launch kernel
-    xor_function<<<totalBlocks, threadsPerBlock>>>(
-        cuda_buffer,
-        fileSize
-    );
+    // =========================
+    // DECRYPTION
+    // =========================
+    printf("===== DECRYPTION PHASE =====\n");
 
-    // Wait for GPU completion
-    cudaDeviceSynchronize();
+    float dec_time = runKernel(d_buffer, fileSize);
 
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
+    cudaMemcpy(buffer, d_buffer, fileSize, cudaMemcpyDeviceToHost);
 
-    float milliseconds = 0;
+    saveToFile("../common/cuda/decrypted_corpus", buffer, fileSize);
 
-    cudaEventElapsedTime(
-        &milliseconds,
-        start,
-        stop
-    );
+    float dec_throughput =
+        (fileSize / (1024.0 * 1024.0)) / (dec_time / 1000.0);
 
-    // Copy encrypted data back to CPU
-    cudaMemcpy(
-        buffer,
-        cuda_buffer,
-        fileSize,
-        cudaMemcpyDeviceToHost
-    );
+    printf("Decryption Time: %.4f ms\n", dec_time);
+    printf("Decryption Throughput: %.2f MB/s\n\n", dec_throughput);
 
-    // Save encrypted output
-    if (saveToFile(buffer, fileSize) == -1) {
-        printf("Error saving file.\n");
-
-        cudaFree(cuda_buffer);
-        free(buffer);
-
-        return -1;
-    }
-
-    // Throughput calculation
-    float throughput =
-        (fileSize / (1024.0 * 1024.0))
-        / (milliseconds / 1000.0);
-
-    printf("\n===== CUDA XOR Encryption Complete =====\n");
-
-    printf("Execution Time: %.4f ms\n", milliseconds);
-
-    printf("Throughput: %.2f MB/s\n", throughput);
-
-    printf("Encryption successful.\n");
-
-    // Cleanup
-    cudaFree(cuda_buffer);
-
+    // =========================
+    // CLEANUP
+    // =========================
+    cudaFree(d_buffer);
     free(buffer);
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    printf("Encryption + Decryption Completed Successfully.\n");
 
     return 0;
 }
