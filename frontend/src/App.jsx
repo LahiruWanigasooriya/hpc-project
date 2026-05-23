@@ -12,6 +12,7 @@ const ALGO_META = {
   openmp:  { color: '#10B981', bg: 'bg-emerald-50', border: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-700', label: 'OpenMP', icon: Layers },
   mpi:     { color: '#F59E0B', bg: 'bg-amber-50', border: 'border-amber-200', badge: 'bg-amber-100 text-amber-700', label: 'MPI', icon: Cpu },
   cuda:    { color: '#EC4899', bg: 'bg-pink-50', border: 'border-pink-200', badge: 'bg-pink-100 text-pink-700', label: 'CUDA', icon: Zap },
+  hybrid:  { color: '#8B5CF6', bg: 'bg-violet-50', border: 'border-violet-200', badge: 'bg-violet-100 text-violet-700', label: 'Hybrid (CPU+GPU)', icon: Activity },
 };
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -105,6 +106,8 @@ function App() {
             algorithm,
             threads: algorithm === 'openmp' ? Number(threads) : null,
             processes: algorithm === 'mpi' ? Number(processes) : null,
+            gpu_time_ms: data.gpu_time_ms ?? null,
+            cpu_time_ms: data.cpu_time_ms ?? null,
           },
         ]);
       } else {
@@ -121,7 +124,7 @@ function App() {
   const hasOpenMP = results.some(r => r.algorithm === 'openmp');
   const ompData = results.filter(r => r.algorithm === 'openmp').sort((a, b) => a.threads - b.threads);
 
-  const algos = ['serial', 'openmp', 'mpi', 'cuda'];
+  const algos = ['serial', 'openmp', 'mpi', 'cuda', 'hybrid'];
 
   const tabs = [
     { id: 'bar',  label: 'Comparison',  icon: BarChart2 },
@@ -429,6 +432,40 @@ function App() {
                   })()}
                 </div>
               </div>
+            )}
+
+            {/* Hybrid Breakdown Card */}
+            {currentResult?.algorithm === 'hybrid' && currentResult.gpu_time_ms !== null && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl border border-violet-200 shadow-sm p-5"
+              >
+                <h3 className="text-xs font-semibold text-violet-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Activity className="w-4 h-4" /> Hybrid CPU + GPU Breakdown
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-4 rounded-xl bg-pink-50 border border-pink-100 text-center">
+                    <p className="text-xs text-pink-400 font-medium mb-1">GPU Time</p>
+                    <p className="text-2xl font-bold text-pink-700">{currentResult.gpu_time_ms.toFixed(3)}<span className="text-sm font-normal text-pink-400 ml-1">ms</span></p>
+                    <p className="text-xs text-pink-400 mt-1">50% of data (GPU chunk)</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-center">
+                    <p className="text-xs text-indigo-400 font-medium mb-1">CPU Time</p>
+                    <p className="text-2xl font-bold text-indigo-700">{currentResult.cpu_time_ms.toFixed(3)}<span className="text-sm font-normal text-indigo-400 ml-1">ms</span></p>
+                    <p className="text-xs text-indigo-400 mt-1">50% of data (CPU chunk)</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-violet-50 border border-violet-100 text-center">
+                    <p className="text-xs text-violet-400 font-medium mb-1">GPU / CPU Ratio</p>
+                    <p className="text-2xl font-bold text-violet-700">
+                      {currentResult.cpu_time_ms > 0
+                        ? `${(currentResult.gpu_time_ms / currentResult.cpu_time_ms).toFixed(2)}×`
+                        : 'N/A'}
+                    </p>
+                    <p className="text-xs text-violet-400 mt-1">{currentResult.gpu_time_ms < currentResult.cpu_time_ms ? 'GPU faster' : 'CPU faster'}</p>
+                  </div>
+                </div>
+              </motion.div>
             )}
 
             {/* Process Console */}

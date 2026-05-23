@@ -46,6 +46,14 @@ def parse_execution_time(stdout):
         return float(match.group(1))
     return None
 
+def parse_hybrid_times(stdout):
+    """Parse GPU Time (ms) and CPU Time (ms) from hybrid output."""
+    gpu_match = re.search(r'GPU Time:\s*([0-9.]+)\s*ms', stdout)
+    cpu_match = re.search(r'CPU Time:\s*([0-9.]+)\s*ms', stdout)
+    gpu_ms = float(gpu_match.group(1)) if gpu_match else None
+    cpu_ms = float(cpu_match.group(1)) if cpu_match else None
+    return gpu_ms, cpu_ms
+
 @app.route('/api/status', methods=['GET'])
 def get_status():
     os_name = platform.system()  # 'Windows', 'Linux', or 'Darwin'
@@ -91,7 +99,12 @@ def run_algorithm():
         cwd = os.path.join(BASE_DIR, "cuda")
         cmd = ["./cuda_xor.out"]
         output_file = os.path.join(BASE_DIR, "common", "cuda", "encrypted_corpus")
-        
+
+    elif algorithm == 'hybrid':
+        cwd = os.path.join(BASE_DIR, "cuda")
+        cmd = ["./hybrid_xor.out"]
+        output_file = os.path.join(BASE_DIR, "common", "hybrid_encrypted")
+
     else:
         return jsonify({"error": "Unknown algorithm"}), 400
 
@@ -130,20 +143,26 @@ def run_algorithm():
         stderr_str = result.stderr.decode('utf-8') if isinstance(result.stderr, bytes) else result.stderr
         
         # Parse output for execution time
-        exec_time = parse_execution_time(stdout_str)
-        if exec_time is None:
-            exec_time = wall_time # Fallback to wall-clock time
-            
+        gpu_ms, cpu_ms = None, None
+        if algorithm == 'hybrid':
+            gpu_ms, cpu_ms = parse_hybrid_times(stdout_str)
+            # Total wall time is the bottleneck (they run sequentially in this impl)
+            exec_time = wall_time
+        else:
+            exec_time = parse_execution_time(stdout_str)
+            if exec_time is None:
+                exec_time = wall_time  # Fallback
+
         # Calculate RMSE
         rmse = calculate_rmse(CORPUS_PATH, output_file)
-        
+
         # Get file size
         file_size = os.path.getsize(CORPUS_PATH) if os.path.exists(CORPUS_PATH) else 0
-        
+
         # Throughput
         throughput = (file_size / (1024 * 1024)) / exec_time if exec_time > 0 else 0
-        
-        return jsonify({
+
+        response = {
             "status": "success" if result.returncode == 0 else "error",
             "algorithm": algorithm,
             "stdout": stdout_str,
@@ -153,7 +172,14 @@ def run_algorithm():
             "rmse": rmse,
             "throughput_mb_s": throughput,
             "file_size": file_size
-        })
+        }
+        # Attach hybrid-specific breakdown if available
+        if gpu_ms is not None:
+            response["gpu_time_ms"] = gpu_ms
+        if cpu_ms is not None:
+            response["cpu_time_ms"] = cpu_ms
+
+        return jsonify(response)
         
     except Exception as e:
         return jsonify({
