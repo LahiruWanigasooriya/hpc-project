@@ -65,11 +65,11 @@ int main() {
             #pragma omp barrier
             #pragma omp single
             {
-                FILE *enc_file = fopen("encrypted_file.bin", "wb");
+                FILE *enc_file = fopen("../common/results/openmp/openmp_encrypted", "wb");
                 if (enc_file) {
                     fwrite(buffer, 1, length, enc_file);
                     fclose(enc_file);
-                    printf("[INFO] Full encrypted file saved to encrypted_file.bin\n");
+                    printf("[INFO] Full encrypted file saved.\n");
                 } else {
                     printf("[ERROR] Could not create encrypted file.\n");
                 }
@@ -87,6 +87,16 @@ int main() {
 
     double end_time = omp_get_wtime();
     double time_taken = end_time - start_time;
+
+    // Save decrypted output after all iterations
+    FILE *dec_file = fopen("../common/results/openmp/openmp_decrypted", "wb");
+    if (dec_file) {
+        fwrite(buffer, 1, length, dec_file);
+        fclose(dec_file);
+        printf("[INFO] Final decrypted output saved.\n");
+    } else {
+        printf("[ERROR] Could not create decrypted output file.\n");
+    }
 
     printf("\n--- Results ---\n");
     if (memcmp(original, buffer, length) == 0) {

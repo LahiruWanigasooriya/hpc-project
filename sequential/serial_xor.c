@@ -53,7 +53,7 @@ int main() {
         // --- Save Output Logic ---
         // Perform this only on the very first iteration (k == 0)
         if (k == 0) {
-            FILE *enc_file = fopen("serial_enc_text_corpus", "w");
+            FILE *enc_file = fopen("../common/results/serial/serial_encrypted", "w");
             if (enc_file != NULL) {
                 fwrite(buffer, 1, length, enc_file);
                 fclose(enc_file);
@@ -71,6 +71,16 @@ int main() {
 
     clock_t end_time = clock();
     double time_taken = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
+
+    // Save decrypted output after all iterations
+    FILE *dec_file = fopen("../common/results/serial/serial_decrypted", "w");
+    if (dec_file != NULL) {
+        fwrite(buffer, 1, length, dec_file);
+        fclose(dec_file);
+        printf("[INFO] Final decrypted output saved.\n");
+    } else {
+        printf("[ERROR] Could not create decrypted output file.\n");
+    }
 
     printf("\n--- Results ---\n");
     if (memcmp(original, buffer, length) == 0) {
