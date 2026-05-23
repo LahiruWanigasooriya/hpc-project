@@ -78,6 +78,7 @@ clean:
 	@echo "✓ Clean complete"
 
 # Help
+# Help
 help:
 	@echo "HPC Project Makefile (Sequential + OpenMP)"
 	@echo "==========================================="
