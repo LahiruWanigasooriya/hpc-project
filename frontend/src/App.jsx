@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Play, Activity, Clock, FileDigit, Cpu, HardDrive, BarChart2, Terminal, TrendingUp, Zap, CheckCircle2, XCircle, ChevronRight, Server, Layers, Monitor, AlertTriangle } from 'lucide-react';
+import { Play, Activity, Clock, FileDigit, Cpu, HardDrive, BarChart2, Terminal, TrendingUp, Zap, CheckCircle2, XCircle, ChevronRight, Server, Layers, Monitor, AlertTriangle, Trash2, TableProperties } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, LineChart, Line, ComposedChart, Area, ReferenceLine
@@ -61,9 +61,22 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
   const [currentOutput, setCurrentOutput] = useState('');
-  const [activeTab, setActiveTab] = useState('bar');
-  const [backendStatus, setBackendStatus] = useState('checking'); // 'checking' | 'connected' | 'offline'
-  const [osInfo, setOsInfo] = useState(null); // null | { os, is_windows, warning }
+  const [activeTab, setActiveTab]       = useState('bar');
+  const [backendStatus, setBackendStatus] = useState('checking');
+  const [osInfo, setOsInfo]             = useState(null);
+  const [toasts, setToasts]             = useState([]); // {id, type, message}
+
+  const showToast = (type, message) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  };
+
+  const clearResults = () => {
+    setResults([]);
+    setCurrentOutput('');
+    showToast('info', 'All results cleared.');
+  };
 
   const pingBackend = async () => {
     setBackendStatus('checking');
@@ -111,11 +124,14 @@ function App() {
             cpu_time_ms: data.cpu_time_ms ?? null,
           },
         ]);
+        showToast('success', `${algorithm.toUpperCase()} completed in ${data.execution_time.toFixed(3)}s`);
       } else {
         setCurrentOutput(prev => prev + `\n\n⚠ Error: ${data.error || 'Execution failed'}`);
+        showToast('error', `${algorithm.toUpperCase()} execution failed.`);
       }
     } catch (err) {
       setCurrentOutput(prev => prev + `\n\n✘ Connection error: ${err.message}`);
+      showToast('error', `Connection error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -291,7 +307,13 @@ function App() {
             {/* Run History */}
             {results.length > 0 && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Run History</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Run History</h2>
+                  <button onClick={clearResults}
+                    className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-all">
+                    <Trash2 className="w-3 h-3" /> Clear
+                  </button>
+                </div>
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                   {[...results].reverse().map((r, i) => {
                     const meta = ALGO_META[r.algorithm];
@@ -581,7 +603,91 @@ function App() {
         {/* Algorithm Visualizer — full width */}
         <AlgorithmVisualizer />
 
+        {/* ── Results Table ── */}
+        {results.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TableProperties className="w-4 h-4 text-indigo-500" />
+                <h2 className="text-sm font-bold text-slate-800">Full Results Table</h2>
+                <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium">{results.length} runs</span>
+              </div>
+              <button onClick={clearResults}
+                className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all font-medium border border-red-200">
+                <Trash2 className="w-3 h-3" /> Clear All
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    {['#','Algorithm','Workers','Time (s)','Throughput (MB/s)','RMSE','Speedup','Integrity'].map(h => (
+                      <th key={h} className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-5 py-3 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.map((r, i) => {
+                    const meta = ALGO_META[r.algorithm];
+                    const speedup = serialResult && r.algorithm !== 'serial'
+                      ? (serialResult.time / r.time).toFixed(2) : '—';
+                    const workers = r.threads ?? r.processes ?? 1;
+                    return (
+                      <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                        <td className="px-5 py-3 text-slate-400 text-xs tabular-nums">{i + 1}</td>
+                        <td className="px-5 py-3">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${meta.badge}`}>{r.name}</span>
+                        </td>
+                        <td className="px-5 py-3 text-slate-600 tabular-nums text-xs">{workers}</td>
+                        <td className="px-5 py-3 font-bold text-slate-800 tabular-nums">{r.time}</td>
+                        <td className="px-5 py-3 text-slate-600 tabular-nums">{r.throughput}</td>
+                        <td className="px-5 py-3 text-slate-600 tabular-nums font-mono text-xs">{r.rmse.toFixed(4)}</td>
+                        <td className="px-5 py-3">
+                          {speedup !== '—'
+                            ? <span className={`font-bold tabular-nums ${Number(speedup) >= 1 ? 'text-emerald-600' : 'text-red-500'}`}>{speedup}×</span>
+                            : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-3">
+                          {r.rmse === 0
+                            ? <span className="flex items-center gap-1 text-emerald-600 text-xs font-medium"><CheckCircle2 className="w-3.5 h-3.5" />Pass</span>
+                            : <span className="flex items-center gap-1 text-red-500 text-xs font-medium"><XCircle className="w-3.5 h-3.5" />Fail</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
       </div>
+
+      {/* ── Toast Notifications ── */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+              transition={{ duration: 0.22 }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium pointer-events-auto max-w-xs ${
+                toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+                toast.type === 'error'   ? 'bg-red-50 border-red-200 text-red-800' :
+                                           'bg-blue-50 border-blue-200 text-blue-800'
+              }`}
+            >
+              {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
+              {toast.type === 'error'   && <XCircle      className="w-4 h-4 text-red-500 shrink-0" />}
+              {toast.type === 'info'    && <Activity     className="w-4 h-4 text-blue-500 shrink-0" />}
+              <span>{toast.message}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
     </div>
   );
 }
