@@ -110,6 +110,9 @@ function App() {
       setCurrentOutput(data.stdout || data.stderr || 'No output generated.');
 
       if (data.status === 'success') {
+        const stdout = data.stdout || '';
+        // Parse the actual integrity result from C program output
+        const integrityOk = stdout.includes('[SUCCESS]') || stdout.includes('Integrity maintained');
         setResults(prev => [
           ...prev,
           {
@@ -117,6 +120,7 @@ function App() {
             time: Number(data.execution_time.toFixed(4)),
             throughput: Number(data.throughput_mb_s.toFixed(2)),
             rmse: data.rmse,
+            integrityOk,
             algorithm,
             threads: algorithm === 'openmp' ? Number(threads) : null,
             processes: algorithm === 'mpi' ? Number(processes) : null,
@@ -487,19 +491,21 @@ function App() {
             {results.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Integrity (RMSE)</h3>
-                  <div className={`flex items-center gap-3 p-3 rounded-xl ${currentResult.rmse === 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
-                    {currentResult.rmse === 0 ? (
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Integrity Check</h3>
+                  <div className={`flex items-center gap-3 p-3 rounded-xl ${currentResult.integrityOk ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                    {currentResult.integrityOk ? (
                       <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0" />
                     ) : (
                       <XCircle className="w-6 h-6 text-red-500 shrink-0" />
                     )}
                     <div>
-                      <p className={`text-sm font-bold ${currentResult.rmse === 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                        {currentResult.rmse === 0 ? 'Perfect Accuracy' : 'Data Mismatch'}
+                      <p className={`text-sm font-bold ${currentResult.integrityOk ? 'text-emerald-700' : 'text-red-700'}`}>
+                        {currentResult.integrityOk ? 'Integrity Maintained' : 'Data Corruption Detected'}
                       </p>
-                      <p className={`text-xs ${currentResult.rmse === 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-                        RMSE = {currentResult.rmse.toFixed(4)}
+                      <p className={`text-xs ${currentResult.integrityOk ? 'text-emerald-500' : 'text-red-400'}`}>
+                        {currentResult.integrityOk
+                          ? 'Decrypt → original match confirmed'
+                          : 'memcmp failed after decrypt cycle'}
                       </p>
                     </div>
                   </div>
@@ -648,7 +654,7 @@ function App() {
                             : <span className="text-slate-300">—</span>}
                         </td>
                         <td className="px-5 py-3">
-                          {r.rmse === 0
+                          {r.integrityOk
                             ? <span className="flex items-center gap-1 text-emerald-600 text-xs font-medium"><CheckCircle2 className="w-3.5 h-3.5" />Pass</span>
                             : <span className="flex items-center gap-1 text-red-500 text-xs font-medium"><XCircle className="w-3.5 h-3.5" />Fail</span>}
                         </td>
