@@ -1,19 +1,25 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
-#define CHUNK_SIZE 1000
+#include <cuda_runtime.h>
+
 #define KEY 'K'
-__global__ void xor_function(char* cuda_chunk, char* cuda_result, int chunkSize){
-    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (index < chunkSize){   // <-- add this guard
-        cuda_result[index] = cuda_chunk[index] ^ KEY;
+
+// XOR kernel (same for encryption and decryption)
+__global__ void xor_function(char* data, int size) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index < size) {
+        data[index] ^= KEY;
     }
 }
 
-int loadFile(char** buffer, int* fileSize){
-    FILE *file = fopen("../common/text_corpus", "r");
-    if (file == NULL) {
-        perror("Error opening text_corpus");
+// Load file
+int loadFile(char** buffer, int* fileSize) {
+
+    FILE *file = fopen("../common/text_corpus", "rb");
+
+    if (!file) {
+        perror("Error opening input file");
         return -1;
     }
 
@@ -21,134 +27,127 @@ int loadFile(char** buffer, int* fileSize){
     long length = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-   *buffer = (char *)malloc(length + 1);
+    *buffer = (char*)malloc(length);
 
-    if (*buffer == NULL) {
-        printf("Memory allocation failed.\n");
-        if (file) fclose(file);
+    if (!*buffer) {
+        printf("Memory allocation failed\n");
+        fclose(file);
         return -1;
     }
 
     fread(*buffer, 1, length, file);
-    // buffer[length] = '\0';
     fclose(file);
+
     *fileSize = length;
     return 0;
 }
 
-int calculateNumberOfChunks(int length, int chunkSize){
-    int numberOfChunks;
-    if (length%chunkSize==0){
-        numberOfChunks = length/chunkSize;
-    }else{
-        numberOfChunks = (length/chunkSize) + 1;
-    }
+// Save file
+int saveToFile(const char* path, char* buffer, int fileSize) {
 
-    if (numberOfChunks ==0 || numberOfChunks<0){
+    FILE *file = fopen(path, "wb");
+
+    if (!file) {
+        perror("Error opening output file");
         return -1;
     }
-    return numberOfChunks;
-}
 
-void chunkBuffer(char* buffer, int currentIndex, char* chunk, int currentChunkSize){
-    for(int i=0; i<currentChunkSize; i++){
-        chunk[i] = buffer[currentIndex*CHUNK_SIZE + i];
-    }
-}
-
-int saveToFile(char* buffer, int fileSize){
-    FILE *file = fopen("../common/cuda/encrypted_corpus", "w");
-    if (file == NULL) {
-        perror("Error opening encrypted_corpus");
-        return -1;
-    }
     fwrite(buffer, 1, fileSize, file);
     fclose(file);
+
     return 0;
 }
 
-int main(){
+// Run kernel + timing
+float runKernel(char* d_buffer, int fileSize) {
+
+    int threadsPerBlock = 256;
+    int totalBlocks = (fileSize + threadsPerBlock - 1) / threadsPerBlock;
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+
+    xor_function<<<totalBlocks, threadsPerBlock>>>(d_buffer, fileSize);
+
+    cudaDeviceSynchronize();
+
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float ms = 0;
+    cudaEventElapsedTime(&ms, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
+    return ms;
+}
+
+int main() {
+
     char* buffer = NULL;
     int fileSize;
-    if(loadFile(&buffer, &fileSize) == -1){
-        printf("Error loading.\n");
-        return -1;
-    }
-    int numberOfChunks = calculateNumberOfChunks(fileSize,CHUNK_SIZE);
 
-    int sizeOfFinalChunk;
-    if (fileSize%CHUNK_SIZE==0){
-        sizeOfFinalChunk = CHUNK_SIZE;
-    }else{
-        sizeOfFinalChunk = fileSize%CHUNK_SIZE;
-    }
-    if (numberOfChunks == -1){
+    // Load file
+    if (loadFile(&buffer, &fileSize) == -1) {
         return -1;
     }
-    int indexOfFinalChunk = numberOfChunks-1;
 
     printf("File size: %d bytes\n", fileSize);
-    printf("Number of chunks: %d\n", numberOfChunks);
-    printf("Size of final chunk: %d bytes\n", sizeOfFinalChunk);
-    printf("Index of final chunk: %d\n", indexOfFinalChunk);
 
-    char* finalResult = (char*)malloc(fileSize*sizeof(char));
+    char* d_buffer;
+    cudaMalloc((void**)&d_buffer, fileSize);
 
-    clock_t start_time = clock();
+    cudaMemcpy(d_buffer, buffer, fileSize, cudaMemcpyHostToDevice);
 
-    for(int i=0; i<numberOfChunks; i++){
-        int currentChunkSize = CHUNK_SIZE;
-        if (i == indexOfFinalChunk){
-             currentChunkSize = sizeOfFinalChunk;
-        }
-        // printf("Processing chunk %d/%d\n", i+1, numberOfChunks);
-        char* chunk = (char*)malloc(currentChunkSize*sizeof(char));
-        char* result = (char*)malloc(currentChunkSize*sizeof(char));
-        chunkBuffer(buffer, i, chunk, currentChunkSize);
+    printf("Threads per block: 256\n");
+    printf("Total blocks: %d\n\n",
+           (fileSize + 255) / 256);
 
-        // GPU memory allocation
-        char* cuda_chunk;
-        cudaMalloc((void**) &cuda_chunk, currentChunkSize * sizeof(char));
-        char* cuda_result;
-        cudaMalloc((void**) &cuda_result, currentChunkSize * sizeof(char));
+    // =========================
+    // ENCRYPTION
+    // =========================
+    printf("===== ENCRYPTION PHASE =====\n");
 
-        // copying chunk to GPU
-        cudaMemcpy(cuda_chunk, chunk, currentChunkSize * sizeof(char), cudaMemcpyHostToDevice);
-        int totalThreads = currentChunkSize;
-        int threadsForABlock = 256;
-        int totalBlocks = 0;
-        if (totalThreads % threadsForABlock == 0){
-            totalBlocks = totalThreads/threadsForABlock;
-        }else{
-            totalBlocks = totalThreads/threadsForABlock+1;
-        }
+    float enc_time = runKernel(d_buffer, fileSize);
 
-        xor_function<<<totalBlocks, threadsForABlock>>>(cuda_chunk,cuda_result,currentChunkSize);
-        cudaDeviceSynchronize();
+    cudaMemcpy(buffer, d_buffer, fileSize, cudaMemcpyDeviceToHost);
 
-        // copying result back to host
-        cudaMemcpy(result, cuda_result, currentChunkSize * sizeof(char), cudaMemcpyDeviceToHost);
+    saveToFile("../common/cuda/encrypted_corpus", buffer, fileSize);
 
-        // Copy the result back to the final result buffer
-        for(int j=0; j<currentChunkSize; j++){
-            finalResult[i*currentChunkSize + j] = result[j];
-        }
+    float enc_throughput =
+        (fileSize / (1024.0 * 1024.0)) / (enc_time / 1000.0);
 
-        free(chunk);
-        free(result);
-        cudaFree(cuda_chunk);
-        cudaFree(cuda_result);
-    }
+    printf("Encryption Time: %.4f ms\n", enc_time);
+    printf("Encryption Throughput: %.2f MB/s\n\n", enc_throughput);
 
-    clock_t end_time = clock();
-    double time_taken = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
+    // =========================
+    // DECRYPTION
+    // =========================
+    printf("===== DECRYPTION PHASE =====\n");
 
-    printf("\nTotal Execution Time: %f seconds\n", time_taken);
-    printf("Avg Time per Chunk: %.9f seconds\n", time_taken / numberOfChunks);
+    float dec_time = runKernel(d_buffer, fileSize);
 
-    if(saveToFile(finalResult, fileSize) == -1){
-        printf("Error saving to file.\n");
-        return -1;
-    }
+    cudaMemcpy(buffer, d_buffer, fileSize, cudaMemcpyDeviceToHost);
+
+    saveToFile("../common/cuda/decrypted_corpus", buffer, fileSize);
+
+    float dec_throughput =
+        (fileSize / (1024.0 * 1024.0)) / (dec_time / 1000.0);
+
+    printf("Decryption Time: %.4f ms\n", dec_time);
+    printf("Decryption Throughput: %.2f MB/s\n\n", dec_throughput);
+
+    // =========================
+    // CLEANUP
+    // =========================
+    cudaFree(d_buffer);
+    free(buffer);
+
+    printf("Encryption + Decryption Completed Successfully.\n");
+
     return 0;
 }
