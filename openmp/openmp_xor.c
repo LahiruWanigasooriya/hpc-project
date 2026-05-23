@@ -51,40 +51,39 @@ int main() {
 
     double start_time = omp_get_wtime();
 
-    #pragma omp parallel 
-    {
+ #pragma omp parallel 
+{
+    for (int k = 0; k < NUM_ITERATIONS; k++) {
+        // Encryption pass
+        #pragma omp for schedule(static)
+        for (long i = 0; i < length; i++) {
+            buffer[i] ^= KEY;
+        }
 
-        for (int k = 0; k < NUM_ITERATIONS; k++) {
-            
-            #pragma omp for schedule(static)
-            for (long i = 0; i < length; i++) {
-                buffer[i] = buffer[i] ^ KEY;
+        // Save encrypted file 
+        if (k == 0) {
+            #pragma omp barrier
+            #pragma omp single
+            {
+                FILE *enc_file = fopen("encrypted_file.bin", "wb");
+                if (enc_file) {
+                    fwrite(buffer, 1, length, enc_file);
+                    fclose(enc_file);
+                    printf("[INFO] Full encrypted file saved to encrypted_file.bin\n");
+                } else {
+                    printf("[ERROR] Could not create encrypted file.\n");
+                }
             }
+            #pragma omp barrier
+        }
 
-            // --- Capture Output Logic ---
-            // On the 1st iteration (k=0), wait for all threads to finish encrypting
-            // then one thread writes the encrypted buffer to a file.
-            // if (k == 0) {
-            //     #pragma omp barrier 
-            //     #pragma omp single
-            //     {
-            //         FILE *enc_file = fopen("openmp_enc_text_corpus", "w");
-            //         if (enc_file) {
-            //             fwrite(buffer, 1, length, enc_file);
-            //             fclose(enc_file);
-            //             printf("[INFO] First iteration encrypted output saved.\n");
-            //         }
-            //     }
-            //     #pragma omp barrier // Ensure writing is done before decryption starts
-            // }
-
-            // 2. Decryption Pass
-            #pragma omp for schedule(static)
-            for (long i = 0; i < length; i++) {
-                buffer[i] = buffer[i] ^ KEY;
-            }
+        // Decryption pass
+        #pragma omp for schedule(static)
+        for (long i = 0; i < length; i++) {
+            buffer[i] ^= KEY;
         }
     }
+}
 
     double end_time = omp_get_wtime();
     double time_taken = end_time - start_time;
