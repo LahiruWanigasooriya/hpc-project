@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, LineChart, Line, ComposedChart, Area, ReferenceLine
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
+import AlgorithmVisualizer from './AlgorithmVisualizer';
 
 const ALGO_META = {
   serial:  { color: '#6366F1', bg: 'bg-indigo-50', border: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-700', label: 'Serial',  icon: Server },
@@ -576,6 +577,10 @@ function App() {
 
           </div>
         </div>
+
+        {/* Algorithm Visualizer — full width */}
+        <AlgorithmVisualizer />
+
       </div>
     </div>
   );
