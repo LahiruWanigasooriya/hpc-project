@@ -116,7 +116,7 @@ int main() {
 
     cudaMemcpy(buffer, d_buffer, fileSize, cudaMemcpyDeviceToHost);
 
-    saveToFile("../common/cuda/encrypted_corpus", buffer, fileSize);
+    saveToFile("../common/results/cuda/cuda_encrypted", buffer, fileSize);
 
     float enc_throughput =
         (fileSize / (1024.0 * 1024.0)) / (enc_time / 1000.0);
@@ -133,7 +133,7 @@ int main() {
 
     cudaMemcpy(buffer, d_buffer, fileSize, cudaMemcpyDeviceToHost);
 
-    saveToFile("../common/cuda/decrypted_corpus", buffer, fileSize);
+    saveToFile("../common/results/cuda/cuda_decrypted", buffer, fileSize);
 
     float dec_throughput =
         (fileSize / (1024.0 * 1024.0)) / (dec_time / 1000.0);

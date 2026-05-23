@@ -236,7 +236,7 @@ int main() {
 
     // Save encrypted file
     saveToFile(
-        "../common/hybrid_encrypted",
+        "../common/results/hybrid/hybrid_encrypted",
         buffer,
         fileSize
     );
@@ -273,7 +273,7 @@ int main() {
 
     // Save decrypted file
     saveToFile(
-        "../common/hybrid_decrypted",
+        "../common/results/hybrid/hybrid_decrypted",
         buffer,
         fileSize
     );

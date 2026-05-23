@@ -34,6 +34,7 @@ def calculate_rmse(original_file, output_file):
         # Calculate RMSE
         mse = np.mean((orig_data.astype(np.float64) - out_data.astype(np.float64)) ** 2)
         rmse = np.sqrt(mse)
+        print(f"original_file: {original_file}, output_file: {output_file}, RMSE: {rmse}")
         return float(rmse)
     except Exception as e:
         print(f"Error calculating RMSE: {e}")
@@ -79,12 +80,12 @@ def run_algorithm():
     if algorithm == 'serial':
         cwd = os.path.join(BASE_DIR, "sequential")
         cmd = ["./serial_xor.out"]
-        output_file = os.path.join(cwd, "serial_enc_text_corpus")
+        output_file = os.path.join(BASE_DIR, "common", "results", "serial", "serial_decrypted")
         
     elif algorithm == 'openmp':
         cwd = os.path.join(BASE_DIR, "openmp")
         cmd = ["./openmp_xor.out"]
-        output_file = os.path.join(cwd, "encrypted_file.bin")
+        output_file = os.path.join(BASE_DIR, "common", "results", "openmp", "openmp_decrypted")
         # We need to pass threads to openmp, but the C code expects scanf input
         # So we use subprocess.run with input=str(threads)
         
@@ -93,17 +94,17 @@ def run_algorithm():
         # Ensure mpi_xor.out is compiled. Example assumes mpiexec is in PATH
         processes = params.get('processes', 4)
         cmd = ["mpiexec", "-n", str(processes), "./mpi_xor.out"]
-        output_file = os.path.join(cwd, "mpi_enc_text_corpus.bin")
+        output_file = os.path.join(BASE_DIR, "common", "results", "mpi", "mpi_decrypted")
         
     elif algorithm == 'cuda':
         cwd = os.path.join(BASE_DIR, "cuda")
         cmd = ["./cuda_xor.out"]
-        output_file = os.path.join(BASE_DIR, "common", "cuda", "encrypted_corpus")
+        output_file = os.path.join(BASE_DIR, "common", "results", "cuda", "cuda_decrypted")
 
     elif algorithm == 'hybrid':
         cwd = os.path.join(BASE_DIR, "cuda")
         cmd = ["./hybrid_xor.out"]
-        output_file = os.path.join(BASE_DIR, "common", "hybrid_encrypted")
+        output_file = os.path.join(BASE_DIR, "common", "results", "hybrid", "hybrid_decrypted")
 
     else:
         return jsonify({"error": "Unknown algorithm"}), 400

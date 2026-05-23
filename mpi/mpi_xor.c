@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
                         0, MPI_COMM_WORLD);
 
             if (rank == 0) {
-                FILE *enc_file = fopen("mpi_enc_text_corpus.bin", "wb");
+                FILE *enc_file = fopen("../common/results/mpi/mpi_encrypted", "wb");
                 if (enc_file != NULL) {
                     fwrite(buffer, 1, file_size, enc_file);
                     fclose(enc_file);
@@ -129,6 +129,16 @@ int main(int argc, char** argv) {
     MPI_Reduce(&time_taken, &max_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
+        // Save decrypted output after all iterations
+        FILE *dec_file = fopen("../common/results/mpi/mpi_decrypted", "wb");
+        if (dec_file != NULL) {
+            fwrite(buffer, 1, file_size, dec_file);
+            fclose(dec_file);
+            printf("[INFO] Final decrypted output saved.\n");
+        } else {
+            printf("[ERROR] Could not create decrypted output file.\n");
+        }
+
         printf("\n--- Results ---\n");
         if (memcmp(original, buffer, file_size) == 0) {
             printf("[SUCCESS] Integrity maintained.\n");
