@@ -61,7 +61,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
   const [currentOutput, setCurrentOutput] = useState('');
-  const [activeTab, setActiveTab]       = useState('bar');
+  const [activeTab, setActiveTab]        = useState('bar');
+  const [activePage, setActivePage]       = useState('dashboard'); // 'dashboard' | 'visualizer'
   const [backendStatus, setBackendStatus] = useState('checking');
   const [osInfo, setOsInfo]             = useState(null);
   const [toasts, setToasts]             = useState([]); // {id, type, message}
@@ -179,16 +180,35 @@ function App() {
     <div className="min-h-screen bg-slate-50 font-sans">
       {/* Top Nav */}
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1920px] mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-[1920px] mx-auto px-6 h-16 grid grid-cols-3 items-center">
+          {/* Left — Logo */}
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               <Activity className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-slate-800 text-lg tracking-tight">HPC Analysis Dashboard</span>
+            <span className="font-semibold text-slate-800 text-lg tracking-tight">HPC Analysis</span>
             <span className="text-slate-300 text-lg">|</span>
-            <span className="text-sm text-slate-400">XOR Encryption Benchmark</span>
+            <span className="text-sm text-slate-400">XOR Benchmark</span>
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Center — Page tabs */}
+          <div className="flex items-center justify-center gap-1">
+            {[
+              { id: 'dashboard',  label: 'Dashboard',  icon: BarChart2 },
+              { id: 'visualizer', label: 'Visualizer', icon: Activity },
+            ].map(p => (
+              <button key={p.id} onClick={() => setActivePage(p.id)}
+                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                  activePage === p.id
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}>
+                <p.icon className="w-4 h-4" />
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 justify-self-end">
             {/* Backend Status */}
             {backendStatus === 'checking' && (
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200">
@@ -227,9 +247,11 @@ function App() {
         </div>
       </nav>
 
+      {/* ── Page Content ── */}
       <div className="max-w-[1920px] mx-auto px-6 py-8 space-y-6">
 
-        {/* Stats overview row */}
+        {/* Dashboard page content */}
+        {activePage === 'dashboard' && (<>
         {currentResult && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard icon={Clock}     label="Execution Time" value={`${currentResult.time}s`} color="#6366F1" delay={0} />
@@ -606,9 +628,6 @@ function App() {
           </div>
         </div>
 
-        {/* Algorithm Visualizer — full width */}
-        <AlgorithmVisualizer />
-
         {/* ── Results Table ── */}
         {results.length > 0 && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -665,6 +684,13 @@ function App() {
               </table>
             </div>
           </div>
+        )}
+
+        </>)}
+
+        {/* ── Visualizer Page ── */}
+        {activePage === 'visualizer' && (
+          <AlgorithmVisualizer />
         )}
 
       </div>
