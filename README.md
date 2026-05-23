@@ -54,7 +54,7 @@ After each run, the dashboard shows:
 
 - **Execution Time** in seconds
 - **Throughput** in MB/s
-- **RMSE Accuracy** — `0.0000` means a perfect match (data integrity maintained)
+- **RMSE** — `0.0000` means a perfect match (data integrity maintained)
 - **Speedup** relative to serial baseline
 - **Bar chart** comparing execution time across all runs
 - **Thread Scaling Line Chart** (OpenMP only) — shows how time and throughput change as thread count increases

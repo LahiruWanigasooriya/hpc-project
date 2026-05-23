@@ -234,7 +234,7 @@ function App() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard icon={Clock}     label="Execution Time" value={`${currentResult.time}s`} color="#6366F1" delay={0} />
             <MetricCard icon={HardDrive} label="Throughput"     value={currentResult.throughput} unit="MB/s" color="#10B981" delay={0.05} />
-            <MetricCard icon={FileDigit} label="RMSE Accuracy"  value={currentResult.rmse === 0 ? '0.0000' : currentResult.rmse.toFixed(4)} color={currentResult.rmse === 0 ? '#10B981' : '#EF4444'} delay={0.1} />
+            <MetricCard icon={FileDigit} label="RMSE"  value={currentResult.rmse === 0 ? '0.0000' : currentResult.rmse.toFixed(4)} color={currentResult.rmse === 0 ? '#10B981' : '#EF4444'} delay={0.1} />
             <MetricCard icon={Cpu}       label="Algorithm"      value={ALGO_META[currentResult.algorithm].label} color={ALGO_META[currentResult.algorithm].color} delay={0.15} />
           </div>
         )}
