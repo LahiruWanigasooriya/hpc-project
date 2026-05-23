@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Play, Activity, Clock, FileDigit, Cpu, HardDrive, BarChart2, Terminal, TrendingUp, Zap, CheckCircle2, XCircle, ChevronRight, Server, Layers, Monitor, AlertTriangle } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, LineChart, Line, ComposedChart, Area
+  ResponsiveContainer, LineChart, Line, ComposedChart, Area, ReferenceLine
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -121,14 +121,37 @@ function App() {
   };
 
   const currentResult = results.length > 0 ? results[results.length - 1] : null;
+  const serialResult  = results.find(r => r.algorithm === 'serial');
   const hasOpenMP = results.some(r => r.algorithm === 'openmp');
-  const ompData = results.filter(r => r.algorithm === 'openmp').sort((a, b) => a.threads - b.threads);
+  const hasMPI    = results.some(r => r.algorithm === 'mpi');
+  const ompData   = results.filter(r => r.algorithm === 'openmp').sort((a, b) => a.threads - b.threads);
+
+  // Efficiency = (SerialTime / ParallelTime) / Workers  × 100%
+  const efficiencyData = (() => {
+    if (!serialResult) return [];
+    const T_s = serialResult.time;
+    // Collect all OpenMP + MPI runs, key by worker count
+    const map = {};
+    results.filter(r => r.algorithm === 'openmp' && r.threads).forEach(r => {
+      const key = r.threads;
+      const eff = Number(((T_s / r.time) / r.threads * 100).toFixed(1));
+      if (!map[key] || map[key].omp === undefined) map[key] = { ...map[key], workers: key, omp: eff };
+    });
+    results.filter(r => r.algorithm === 'mpi' && r.processes).forEach(r => {
+      const key = r.processes;
+      const eff = Number(((T_s / r.time) / r.processes * 100).toFixed(1));
+      map[key] = { ...map[key], workers: key, mpi: eff };
+    });
+    return Object.values(map).sort((a, b) => a.workers - b.workers);
+  })();
+  const hasEfficiency = efficiencyData.length > 0;
 
   const algos = ['serial', 'openmp', 'mpi', 'cuda', 'hybrid'];
 
   const tabs = [
-    { id: 'bar',  label: 'Comparison',  icon: BarChart2 },
-    { id: 'line', label: 'Thread Scaling', icon: TrendingUp },
+    { id: 'bar',        label: 'Comparison',     icon: BarChart2 },
+    { id: 'line',       label: 'Thread Scaling',  icon: TrendingUp },
+    { id: 'efficiency', label: 'Efficiency',      icon: Activity },
   ];
 
   return (
@@ -303,7 +326,10 @@ function App() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      disabled={tab.id === 'line' && !hasOpenMP}
+                      disabled={
+                        (tab.id === 'line' && !hasOpenMP) ||
+                        (tab.id === 'efficiency' && !hasEfficiency)
+                      }
                       className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-all border-b-2 -mb-px ${
                         activeTab === tab.id
                           ? 'border-indigo-600 text-indigo-700'
@@ -316,7 +342,7 @@ function App() {
                   ))}
                 </div>
                 {!hasOpenMP && (
-                  <p className="text-xs text-slate-400 italic pb-2">Run OpenMP to enable Thread Scaling chart</p>
+                  <p className="text-xs text-slate-400 italic pb-2">Run OpenMP/MPI to enable Thread Scaling & Efficiency charts</p>
                 )}
               </div>
 
@@ -370,6 +396,66 @@ function App() {
                       <Area yAxisId="right" type="monotone" dataKey="throughput" name="Throughput (MB/s)" stroke="#10B981" strokeWidth={2} fill="url(#throughputArea)" dot={{ r: 5, fill: '#10B981', strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 7 }} />
                     </ComposedChart>
                   </ResponsiveContainer>
+                )}
+                {activeTab === 'efficiency' && hasEfficiency && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={efficiencyData} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="ompEffArea" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#10B981" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="mpiEffArea" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#F59E0B" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                      <XAxis
+                        dataKey="workers"
+                        tick={{ fill: '#94A3B8', fontSize: 11 }}
+                        axisLine={false} tickLine={false}
+                        tickFormatter={v => `${v} workers`}
+                      />
+                      <YAxis
+                        domain={[0, 110]}
+                        tick={{ fill: '#94A3B8', fontSize: 11 }}
+                        axisLine={false} tickLine={false}
+                        tickFormatter={v => `${v}%`}
+                      />
+                      <Tooltip
+                        content={<CustomTooltip />}
+                        labelFormatter={v => `${v} Workers`}
+                        formatter={(val) => [`${val}%`]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
+                      {/* Ideal 100% reference line */}
+                      <ReferenceLine y={100} stroke="#E2E8F0" strokeDasharray="5 5" label={{ value: 'Ideal 100%', position: 'right', fontSize: 10, fill: '#94A3B8' }} />
+                      {/* 50% warning zone line */}
+                      <ReferenceLine y={50}  stroke="#FCA5A5" strokeDasharray="4 4" label={{ value: '50% threshold', position: 'right', fontSize: 10, fill: '#F87171' }} />
+                      {efficiencyData.some(d => d.omp !== undefined) && (
+                        <Area
+                          type="monotone" dataKey="omp" name="OpenMP Efficiency (%)"
+                          stroke="#10B981" strokeWidth={2.5} fill="url(#ompEffArea)"
+                          dot={{ r: 5, fill: '#10B981', strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 7 }}
+                        />
+                      )}
+                      {efficiencyData.some(d => d.mpi !== undefined) && (
+                        <Area
+                          type="monotone" dataKey="mpi" name="MPI Efficiency (%)"
+                          stroke="#F59E0B" strokeWidth={2.5} fill="url(#mpiEffArea)"
+                          dot={{ r: 5, fill: '#F59E0B', strokeWidth: 2, stroke: 'white' }} activeDot={{ r: 7 }}
+                        />
+                      )}
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                )}
+
+                {activeTab === 'efficiency' && !hasEfficiency && (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3">
+                    <Activity className="w-10 h-10 text-slate-200" />
+                    <p className="text-sm text-center">Run <span className="font-semibold text-emerald-500">OpenMP</span> or <span className="font-semibold text-amber-500">MPI</span> with serial baseline to compute efficiency</p>
+                  </div>
                 )}
               </div>
             </div>
