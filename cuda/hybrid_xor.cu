@@ -6,7 +6,7 @@
 
 #define KEY 'K'
 
-// ================= CUDA KERNEL =================
+// =========== CUDA KERNEL ==========
 __global__ void xor_function(char* data, int size) {
 
     int index =
@@ -17,7 +17,7 @@ __global__ void xor_function(char* data, int size) {
     }
 }
 
-// ================= CPU XOR =================
+// ============= CPU XOR ============
 void cpu_xor(char* data, int size) {
 
     for (int i = 0; i < size; i++) {
@@ -25,7 +25,7 @@ void cpu_xor(char* data, int size) {
     }
 }
 
-// ================= LOAD FILE =================
+// ============= LOAD FILE ==============
 int loadFile(char** buffer, int* fileSize) {
 
     FILE* file =
