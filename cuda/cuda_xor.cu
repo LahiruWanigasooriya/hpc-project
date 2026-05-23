@@ -3,9 +3,11 @@
 #include <time.h>
 #define CHUNK_SIZE 1000
 #define KEY 'K'
-__global__ void xor_function(char* cuda_chunk,char* cuda_result,int chunkSize){
+__global__ void xor_function(char* cuda_chunk, char* cuda_result, int chunkSize){
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-    cuda_result[index] = cuda_chunk[index] ^ KEY;
+    if (index < chunkSize){   // <-- add this guard
+        cuda_result[index] = cuda_chunk[index] ^ KEY;
+    }
 }
 
 int loadFile(char** buffer, int* fileSize){
@@ -48,11 +50,12 @@ int calculateNumberOfChunks(int length, int chunkSize){
     return numberOfChunks;
 }
 
-void chunkBuffer(char* buffer,  int currentIndex, char* chunk){
-    for(int i=0; i<CHUNK_SIZE; i++){
+void chunkBuffer(char* buffer, int currentIndex, char* chunk, int currentChunkSize){
+    for(int i=0; i<currentChunkSize; i++){
         chunk[i] = buffer[currentIndex*CHUNK_SIZE + i];
     }
 }
+
 int saveToFile(char* buffer, int fileSize){
     FILE *file = fopen("../common/cuda/encrypted_corpus", "w");
     if (file == NULL) {
@@ -101,7 +104,7 @@ int main(){
         // printf("Processing chunk %d/%d\n", i+1, numberOfChunks);
         char* chunk = (char*)malloc(currentChunkSize*sizeof(char));
         char* result = (char*)malloc(currentChunkSize*sizeof(char));
-        chunkBuffer(buffer, i, chunk);
+        chunkBuffer(buffer, i, chunk, currentChunkSize);
 
         // GPU memory allocation
         char* cuda_chunk;
